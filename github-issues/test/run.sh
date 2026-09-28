@@ -1,5 +1,5 @@
 #!/bin/sh
-# Runs poll.sh and hook.sh against the fake gh in test/bin, which answers
+# Runs poll.sh and finish.sh against the fake gh in test/bin, which answers
 # from canned JSON, so item shaping and the comment are checked offline.
 set -eu
 
@@ -9,6 +9,7 @@ trap 'rm -rf "$tmp"' EXIT
 export PATH="$here/bin:$PATH"
 export GH_ARGS="$tmp/gh-args"
 export GH_FIXTURE="$here/issues.json"
+export GH_LOG="$tmp/gh-log"
 cd "$here/.."
 
 fail() {
@@ -61,18 +62,91 @@ if printf '%s\n' '{"config":{"repo":"acme/widgets/issues?x=1"},"cursor":null,"si
   fail "accepted a repo with a path in it"
 fi
 
-echo "hook: task.done comments on the issue with the task id and state"
-sh hook.sh < test/event.json
+# Each finish test gets its own state dir, as pastor gives each job one.
+finish() {
+  PASTOR_CONNECTOR_STATE_DIR="$tmp/state" sh finish.sh "$@"
+}
+# The finish stdin with a different state, branch or item.
+finish_input() {
+  jq -c "$1" test/finish.json
+}
+
+echo "finish: a done task comments on its issue with its id, state and branch"
+rm -rf "$tmp/state" "$GH_ARGS" "$tmp/gh-log"
+mkdir "$tmp/state"
+finish < test/finish.json
 gh_got issue
 gh_got comment
 gh_got https://github.com/acme/widgets/issues/12
 gh_got --body
 grep -q 't-7' "$GH_ARGS" || fail "the comment does not name task t-7"
-grep -q 'done' "$GH_ARGS" || fail "the comment does not name the state"
+grep -q '`done`' "$GH_ARGS" || fail "the comment does not name the state"
+grep -q 'pastor/issue-12' "$GH_ARGS" || fail "the comment does not name the branch"
+grep -q 'pi-3' "$GH_ARGS" && fail "the comment names the machine on a public issue"
+grep -qx 'pr list --repo acme/widgets --head pastor/issue-12 --state all --json url' "$tmp/gh-log" \
+  || fail "the pull request was not looked up by the task's branch"
 
-echo "hook: an event without an item url is ignored"
+echo "finish: a second finish for the same task comments nothing"
 rm -f "$GH_ARGS"
-printf '%s\n' '{"type":"task.done","task":null}' | sh hook.sh
-[ ! -e "$GH_ARGS" ] || fail "gh ran for an event without an issue"
+finish < test/finish.json
+[ ! -e "$GH_ARGS" ] || fail "gh ran for a task already commented on"
+
+echo "finish: a failed task comments with its state"
+rm -rf "$tmp/state" "$GH_ARGS"
+mkdir "$tmp/state"
+finish_input '.state = "failed" | .task.state = "failed" | .task.error = "agent process exited"' | finish
+grep -q '`failed`' "$GH_ARGS" || fail "the comment does not name the failed state"
+
+echo "finish: an existing pull request adds its link"
+rm -rf "$tmp/state" "$GH_ARGS"
+mkdir "$tmp/state"
+GH_PRS=test/prs.json finish < test/finish.json
+grep -q 'https://github.com/acme/widgets/pull/31' "$GH_ARGS" || fail "the comment has no pull request link"
+
+echo "finish: a task without a branch comments without looking for a pull request"
+rm -rf "$tmp/state" "$GH_ARGS" "$tmp/gh-log"
+mkdir "$tmp/state"
+finish_input '.branch = null' | finish
+gh_got comment
+grep -q '^pr ' "$tmp/gh-log" && fail "looked for a pull request without a branch"
+
+echo "finish: gh failing to comment is logged and exits non-zero"
+rm -rf "$tmp/state"
+mkdir "$tmp/state"
+if GH_FAIL="issue comment" finish < test/finish.json 2> "$tmp/err"; then
+  fail "a failed comment exited 0"
+fi
+grep -q 'issues/12' "$tmp/err" || fail "the failure does not name the issue"
+grep -q '502' "$tmp/err" || fail "gh's own error is not in the log"
+GH_FAIL= finish < test/finish.json
+gh_got comment
+
+echo "finish: gh failing to list pull requests still comments, without a link"
+rm -rf "$tmp/state" "$GH_ARGS"
+mkdir "$tmp/state"
+GH_FAIL="pr list" finish < test/finish.json 2> "$tmp/err"
+gh_got comment
+grep -q 'pull request' "$tmp/err" || fail "the failed lookup is not logged"
+grep -q 'No pull request' "$GH_ARGS" && fail "the comment says there is no pull request when it could not look"
+
+echo "finish: --dry-run prints the comment and posts nothing"
+rm -rf "$tmp/state" "$tmp/gh-log"
+mkdir "$tmp/state"
+GH_PRS=test/prs.json finish --dry-run < test/finish.json > "$tmp/out"
+grep -q 't-7' "$tmp/out" || fail "the dry run did not print the comment"
+grep -q 'pull/31' "$tmp/out" || fail "the dry run left out the pull request"
+grep -q '^issue ' "$tmp/gh-log" && fail "the dry run commented"
+finish < test/finish.json
+gh_got comment
+
+echo "finish: --dry-run needs no state dir"
+sh finish.sh --dry-run < test/finish.json > "$tmp/out"
+grep -q 't-7' "$tmp/out" || fail "the dry run without a state dir printed nothing"
+
+echo "finish: a task whose item has no issue url comments nothing"
+rm -rf "$tmp/state" "$GH_ARGS"
+mkdir "$tmp/state"
+finish_input '.task.item = null' | finish
+[ ! -e "$GH_ARGS" ] || fail "gh ran for a task without an issue"
 
 echo "ok"
