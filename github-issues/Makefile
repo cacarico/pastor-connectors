@@ -1,4 +1,4 @@
-SCRIPTS = poll.sh hook.sh test/run.sh test/bin/gh
+SCRIPTS = poll.sh finish.sh test/run.sh test/bin/gh
 
 .PHONY: check
 check:

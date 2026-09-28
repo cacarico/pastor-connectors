@@ -3,9 +3,10 @@
 # login gh already has is the only credential; nothing goes in .env.
 id = "github-issues"
 name = "GitHub Issues"
-version = "0.2.0"
-min_pastor_version = "0.5.0"
-description = "One item per issue carrying a label; comments on the issue when its task is done"
+version = "0.3.0"
+# 0.7.0 added [finish]; older versions reject it as an unknown key.
+min_pastor_version = "0.7.0"
+description = "One item per issue carrying a label; comments on the issue when its task ends"
 
 [connector]
 mode = "poll"
@@ -22,9 +23,8 @@ description = "Only issues carrying this label become items (default: pastor)"
 [connector.config.state]
 description = "open, closed or all (default: open)"
 
-# Tells the issue how its task ended. only_own keeps it to tasks this
-# connector queued; there is no issue to comment on for any other.
-[[events]]
-on = ["task.done"]
-only_own = true
-command = ["sh", "hook.sh"]
+# Tells the issue how its task ended, with the branch and its pull request.
+# pastor runs it once per task, only for this connector's own jobs, on done
+# or failed.
+[finish]
+command = ["sh", "finish.sh"]

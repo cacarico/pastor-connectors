@@ -3,12 +3,14 @@
 A [pastor](https://github.com/cacarico/pastor) connector that turns GitHub
 issues into tasks. Each run lists the issues of one repository that carry a
 label and emits one item per issue; pastor queues a task for each item it
-has not seen. When a task is done, a hook comments on its issue with the
-task id and final state.
+has not seen. When a task ends, the connector's finish command comments on
+its issue with the task id, the final state, the branch and the branch's pull
+request; merging that pull request closes the issue.
 
 GitHub is reached through the `gh` CLI, so the login `gh` already has on the
 head is the only credential. The connector declares no secrets and needs
-nothing in `.env`. It needs `gh`, `jq` and a POSIX `sh` on the head.
+nothing in `.env`. It needs pastor 0.7.0 or later, and `gh`, `jq` and a
+POSIX `sh` on the head.
 
 ## Install
 
@@ -43,8 +45,8 @@ Fix GitHub issue #{{ item.key }} by {{ item.author }}: {{ item.title }}
 
 {{ item.body }}
 
-Commit, push the branch, open a pull request whose body says
-"Closes #{{ item.key }}", and print DONE as your last line.
+End the commit body with "Fixes #{{ item.key }}", push the branch, open a
+pull request whose body says the same, and print DONE as your last line.
 """
 ```
 
@@ -64,15 +66,46 @@ only picks up issues touched after it was enabled.
 An issue makes one task. pastor remembers the keys it has queued, so a later
 edit or comment on the same issue does not queue another.
 
-## The hook
+## When a task ends
 
-On `task.done` the hook comments on the issue:
+pastor runs the manifest's `[finish]` command once when a task of one of the
+connector's jobs ends `done` or `failed`:
 
-> pastor task t-7 finished with state `done` on pi-3.
+```toml
+# pastor-connector.toml
+[finish]
+command = ["sh", "finish.sh"]
+```
 
-`only_own = true` keeps it to tasks this connector queued. `done` means the
-agent went idle, not that the work is good; the comment is a prompt to look
-at the task's output and the pull request, if any.
+`finish.sh` reads the task, its final state and its branch from stdin (see
+"The finish command" in pastor's manual), looks for a pull request from that
+branch with `gh pr list --head <branch>`, and comments on the issue:
+
+> pastor task t-7 ended `done` on branch `pastor/issue-12`.
+>
+> Pull request: https://github.com/acme/widgets/pull/31
+
+Without a pull request the comment says there is none yet; a task with no
+branch gets only the first line. The machine and the task's error stay out,
+since the issue may be public; `pastor task describe` has both.
+
+It comments once per task. pastor keeps the tasks it has finished in memory
+only, so after a restart it could run the command again; `finish.sh` writes
+`finished-t-<id>` to the job's state dir after it comments and does nothing
+for a task that has one. A failed lookup of the pull request logs a line and
+comments without the link. A failed comment logs gh's error and exits 1, and
+pastor emits `connector.finish_failed`; it does not retry.
+
+`done` means the agent went idle, not that the work is good; the comment is
+a prompt to look at the pull request.
+
+### Closing the issue
+
+The connector never closes an issue itself. The job's prompt has the agent
+end its commit body with `Fixes #<issue>`, from `{{ item.key }}`, and GitHub
+closes the issue when that commit lands on the default branch, however the
+pull request is merged. Nothing polls for merges and no state is kept. A
+pull request closed without merging leaves the issue open.
 
 ## Try it
 
@@ -80,10 +113,14 @@ at the task's output and the pull request, if any.
 pastor connector link ./github-issues
 pastor connector run github-issues --job widgets --since 90d   # prints items, creates nothing
 pastor connector unlink github-issues
+sh github-issues/finish.sh --dry-run < github-issues/test/finish.json   # prints the comment, posts nothing
 ```
 
 `connector run` reads the job's `[connector]` table from its file, which may
-have `enabled = false`.
+have `enabled = false`. `finish.sh --dry-run` takes the stdin pastor would
+send, `test/finish.json` being a sample, and prints the comment it would post.
+It still asks GitHub for the pull request, and it writes nothing to the state
+dir.
 
 ## Test
 
@@ -92,6 +129,8 @@ make check
 ```
 
 `test/run.sh` puts a fake `gh` first on `PATH` that answers `gh api` from
-`test/issues.json` and records its arguments, then checks the emitted lines
-against `test/expected.jsonl`, the query the connector sends, the config
-validation, and the hook's comment. Nothing touches the network.
+`test/issues.json` and `gh pr list` from `test/prs.json`, fails on request,
+and records its arguments. It checks the emitted lines against
+`test/expected.jsonl`, the query the connector sends, the config validation,
+and the finish comment: its state, branch and link, that it is posted once,
+and that a failed `gh` exits non-zero. Nothing touches the network.
