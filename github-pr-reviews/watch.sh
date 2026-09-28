@@ -48,6 +48,7 @@ query($owner: String!, $name: String!, $endCursor: String) {
       nodes {
         number
         headRefName
+        isCrossRepository
         headRefOid
         mergeStateStatus
         reviews(last: 100) { nodes { author { login } } }

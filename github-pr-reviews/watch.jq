@@ -11,10 +11,15 @@
 # Branch names go into lines an orchestrator reads and may paste into a
 # shell, so a pull request or branch whose name is not shell-safe gets no
 # line, only a WARN.
+#
+# A head branch name is only unique within its own repository: a fork's
+# kanban/foo is not this repository's kanban/foo. So only pull requests from
+# this repository name the pull request of a kanban/ branch; a fork's still
+# gets its PR line.
 include "branch" {search: "./"};
 
 [.[].data.repository.pullRequests.nodes[]] as $prs
-| ([$prs[] | select(.headRefName | safe_branch) | {key: .headRefName, value: "#\(.number)"}]
+| ([$prs[] | select(.isCrossRepository == false and (.headRefName | safe_branch)) | {key: .headRefName, value: "#\(.number)"}]
    | from_entries) as $open
 | ($prs[]
     | if .headRefName | safe_branch then

@@ -158,8 +158,9 @@ PUSHED kanban/fe868ab9 sha=4cba06d pr=none
   review threads (of the first 100); `ci` is the head commit's check rollup
   (`SUCCESS`, `FAILURE`, `PENDING`, ...) or `none`; `merge` is GitHub's
   merge state (`CLEAN`, `BLOCKED`, `DIRTY`, `BEHIND`, ...).
-- `PUSHED`: every branch under `kanban/`. `pr` is the open pull request whose
-  head it is, else `merged` when its head is already in the default branch
+- `PUSHED`: every branch under `kanban/`. `pr` is the open pull request from
+  this repository whose head it is (a fork's pull request from a branch of
+  the same name does not count), else `merged` when its head is already in the default branch
   (kanban branches are kept after they merge), else `none`: pushed and
   waiting for a pull request.
 

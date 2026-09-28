@@ -71,6 +71,16 @@ GH_FIXTURE="$tmp/empty.json" GH_REFS="$tmp/norefs.json"
 watch
 [ ! -s "$tmp/out" ] || fail "printed $(cat "$tmp/out")"
 
+echo "watch: a fork's pull request does not claim this repository's branch of the same name"
+jq '.data.repository.pullRequests.nodes += [{number: 43, headRefName: "kanban/ccc", isCrossRepository: true, headRefOid: "2222222bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", mergeStateStatus: "CLEAN", reviews: {nodes: []}, reviewThreads: {nodes: []}, commits: {nodes: []}}]' test/watch-pulls.json > "$tmp/fork.json"
+GH_FIXTURE="$tmp/fork.json" GH_REFS="$here/watch-refs.json"
+watch
+grep -qx 'PR #43 branch=kanban/ccc head=2222222 copilot=none threads_open=0 ci=none merge=CLEAN' "$tmp/out" \
+  || fail "the fork's pull request got no PR line"
+grep -qx 'PUSHED kanban/ccc sha=2222222 pr=none' "$tmp/out" \
+  || fail "kanban/ccc was tied to the fork's pull request: $(grep 'kanban/ccc' "$tmp/out")"
+GH_FIXTURE="$here/watch-pulls.json"
+
 echo "watch: a branch name that is not shell-safe gives no line"
 for branch in 'x;touch pwned' '$(id)' '-f' 'a..b' 'has space' 'a`b`' "it's"; do
   b=$(jq -n --arg b "$branch" '$b')
