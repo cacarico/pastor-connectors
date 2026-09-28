@@ -102,10 +102,12 @@ a prompt to look at the pull request.
 ### Closing the issue
 
 The connector never closes an issue itself. The job's prompt has the agent
-end its commit body with `Fixes #<issue>`, from `{{ item.key }}`, and GitHub
-closes the issue when that commit lands on the default branch, however the
-pull request is merged. Nothing polls for merges and no state is kept. A
-pull request closed without merging leaves the issue open.
+end its commit body with `Fixes #<issue>`, from `{{ item.key }}`. GitHub
+closes the issue when the pull request is merged into the default branch,
+since that brings the commit with the line there. A squash merge whose
+message drops the commit bodies loses the line and leaves the issue open.
+Nothing polls for merges and no state is kept. A pull request closed
+without merging leaves the issue open.
 
 ## Try it
 
