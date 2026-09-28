@@ -1,7 +1,32 @@
 #!/bin/sh
-# A stand-in for gh: records its arguments and answers `api` from GH_FIXTURE,
-# so poll.sh can be checked without a GitHub login or the network.
-printf '%s\n' "$@" > "$GH_ARGS"
-case "$1" in
-  api) cat "$GH_FIXTURE" ;;
-esac
+# A stand-in for gh: records its arguments and answers `api` from canned
+# JSON, so poll.sh and watch.sh can be checked without a GitHub login or the
+# network. GraphQL comes from GH_FIXTURE, a repo's kanban refs from GH_REFS,
+# and a compare from GH_COMPARE, a file of "<sha> <status>" lines. GH_FAIL
+# names an endpoint (graphql, refs or compare) that fails.
+printf '%s\n' "$@" >> "$GH_ARGS"
+[ "$1" = api ] || exit 0
+for a in "$@"; do
+  case "$a" in
+    graphql) endpoint=graphql ;;
+    repos/*/git/matching-refs/*) endpoint=refs ;;
+    repos/*/compare/*) endpoint=compare ;;
+    *) continue ;;
+  esac
+  if [ "${GH_FAIL:-}" = "$endpoint" ]; then
+    echo "gh: HTTP 502: Bad Gateway" >&2
+    exit 1
+  fi
+  case "$endpoint" in
+    graphql) exec cat "$GH_FIXTURE" ;;
+    refs) exec cat "$GH_REFS" ;;
+    compare)
+      status=$(awk -v s="${a##*...}" '$1 == s { print $2 }' "$GH_COMPARE")
+      if [ -z "$status" ]; then
+        echo "gh: HTTP 404: Not Found" >&2
+        exit 1
+      fi
+      exec jq -n --arg s "$status" '{status: $s}'
+      ;;
+  esac
+done

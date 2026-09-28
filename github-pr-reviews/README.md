@@ -7,10 +7,14 @@ by a matching reviewer (Copilot by default). The item carries the review's
 unresolved inline comments, so a job can start an agent that fixes them on
 the pull request's branch.
 
-GitHub is reached through the `gh` CLI, so the login `gh` already has on the
-head is the only credential. The connector declares no secrets and needs
-nothing in `.env`. It needs `gh`, `jq` and a POSIX `sh` on the head. It has
-no hook.
+It also has a `[watch]` command for `pastor watch`: one line per open pull
+request and one per `kanban/` branch, so an orchestrator sees reviews, CI,
+merge state and branches pushed without a pull request.
+
+GitHub is reached through the `gh` CLI, so the login `gh` already has is the
+only credential. The connector declares no secrets; `.env` holds only the
+repository the watch command looks at. It needs `gh`, `jq` and a POSIX `sh`,
+and pastor 0.7.0 or later for `[watch]`. It has no hook.
 
 ## Install
 
@@ -121,6 +125,63 @@ pastor connector unlink github-pr-reviews
 `connector run` reads the job's `[connector]` table from its file, which may
 have `enabled = false`, so the job above can be tried before it is enabled.
 
+## Watch
+
+`pastor watch` runs `watch.sh` each interval on the machine where the
+watcher runs, with no job and no arguments, so the repository comes from the
+connector's `.env` (`~/.config/pastor/connectors/github-pr-reviews/.env`):
+
+```bash
+WATCH_REPO=acme/widgets
+```
+
+```toml
+# pastor.toml
+[[watch.connector]]
+name = "github-pr-reviews"
+```
+
+Each run prints the state as it is now, and the watcher prints a line only
+the first time it sees it, so a line shows up when something about it
+changes:
+
+```
+PR #41 branch=kanban/0e7d383e head=3f2a9c1 copilot=reviewed threads_open=2 ci=SUCCESS merge=BLOCKED
+PUSHED kanban/0e7d383e sha=3f2a9c1 pr=#41
+PUSHED kanban/8070c85f sha=e1e6411 pr=merged
+PUSHED kanban/fe868ab9 sha=4cba06d pr=none
+```
+
+- `PR`: every open pull request. `head` is the head commit's short sha;
+  `copilot` is `reviewed` once any of its last 100 reviews is by a login
+  matching `copilot`, else `none`; `threads_open` counts its unresolved
+  review threads (of the first 100); `ci` is the head commit's check rollup
+  (`SUCCESS`, `FAILURE`, `PENDING`, ...) or `none`; `merge` is GitHub's
+  merge state (`CLEAN`, `BLOCKED`, `DIRTY`, `BEHIND`, ...).
+- `PUSHED`: every branch under `kanban/`. `pr` is the open pull request from
+  this repository whose head it is (a fork's pull request from a branch of
+  the same name does not count), else `merged` when its head is already in the default branch
+  (kanban branches are kept after they merge), else `none`: pushed and
+  waiting for a pull request.
+
+The shape is the one the `orchestrating-pastor-tiered` skill's `watch.sh`
+printed, so its table matches these lines word for word. A pull request or
+branch whose name breaks the rule for head branches above gets no line, only a note on
+stderr. Asking whether a branch is in the default branch costs one API call
+per branch, so a yes is kept in the connector's state dir and not asked
+again. A no is asked every run, since the branch may merge.
+
+A run that fails (a `gh` call fails, or the repository is missing or not
+`owner/name`) prints no lines and exits non-zero; the watcher shows it as
+`CONNECTOR github-pr-reviews failing`. Stderr goes to the run log.
+
+To see the lines once, without a watcher:
+
+```bash
+pastor connector try github-pr-reviews watch
+sh watch.sh --repo acme/widgets     # from a checkout; --repo overrides WATCH_REPO
+```
+
 ## Test
 
 ```bash
@@ -132,4 +193,11 @@ from `test/pulls.json` (two pull requests: one Copilot review with two
 unresolved findings and a resolved one, one clean review) and records its
 arguments, then checks the emitted lines against `test/expected.jsonl`, the
 reviewer and `only_with_findings` settings, the cursor, unsafe head
-branches, cut-short nested lists and the config validation. Nothing touches the network.
+branches, cut-short nested lists and the config validation.
+
+`test/watch.sh` runs `watch.sh` against the same fake `gh`, which answers the
+GraphQL query from `test/watch-pulls.json`, the `kanban/` refs from
+`test/watch-refs.json` and each compare from `test/watch-compare.txt`. It
+checks the lines against `test/watch-expected.txt`, the compare cache,
+unsafe branch names, failing `gh` calls and bad arguments. Nothing touches
+the network.

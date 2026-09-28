@@ -1,0 +1,5 @@
+[
+  { "ref": "refs/heads/kanban/aaa", "object": { "sha": "3f2a9c1e0b7d4a5f8e6c2b1a9d8e7f6a5b4c3d2e", "type": "commit" } },
+  { "ref": "refs/heads/kanban/bbb", "object": { "sha": "1111111aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "type": "commit" } },
+  { "ref": "refs/heads/kanban/ccc", "object": { "sha": "2222222bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "type": "commit" } }
+]
