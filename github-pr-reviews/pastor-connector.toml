@@ -1,16 +1,25 @@
 # Review findings on GitHub pull requests as pastor items: one task per
 # review by a matching reviewer (Copilot by default), carrying the review's
-# unresolved inline comments. Talks to GitHub through the gh CLI, so the
-# login gh already has is the only credential; nothing goes in .env.
+# unresolved inline comments, and the state of pull requests and kanban/
+# branches for `pastor watch`. Talks to GitHub through the gh CLI, so the
+# login gh already has is the only credential; no secrets go in .env.
 id = "github-pr-reviews"
 name = "GitHub PR Reviews"
-version = "0.1.0"
-min_pastor_version = "0.5.0"
+version = "0.2.0"
+# [watch] came with pastor 0.7.0; an older one refuses it as an unknown key.
+min_pastor_version = "0.7.0"
 description = "One item per pull request review by a matching reviewer, with its unresolved comments"
 
 [connector]
 mode = "poll"
 command = ["sh", "poll.sh"]
+timeout = "60s"
+
+# Run by `pastor watch` each interval: one PR line per open pull request and
+# one PUSHED line per kanban/ branch. It gets no job config, so the
+# repository is WATCH_REPO in the connector's .env.
+[watch]
+command = ["sh", "watch.sh"]
 timeout = "60s"
 
 [connector.config.repo]

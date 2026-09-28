@@ -4,12 +4,9 @@
 # moves it, whoever wrote it and whether or not it makes an item, so a run
 # never looks at the same reviews twice. The exception is a pull request
 # whose nested lists were cut short: see $held below.
-def location: .path + (if (.line // .originalLine) then ":\(.line // .originalLine)" else "" end);
+include "branch" {search: "./"};
 
-# Jobs put the branch in prompts an agent may run as shell commands. Only
-# names made of these characters are passed on; the rest are skipped.
-def safe_branch:
-  test("^[A-Za-z0-9_./-]+$") and (startswith("-") | not) and (contains("..") | not);
+def location: .path + (if (.line // .originalLine) then ":\(.line // .originalLine)" else "" end);
 
 # What of a pull request's nested lists was not read, if anything.
 def truncated:
