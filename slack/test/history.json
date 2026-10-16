@@ -1,0 +1,42 @@
+{
+  "ok": true,
+  "messages": [
+    {
+      "type": "message",
+      "ts": "1700000520.000000",
+      "thread_ts": "1700000100.000000",
+      "user": "U0ANA",
+      "text": "a reply in a thread, newest but not top-level"
+    },
+    {
+      "type": "message",
+      "ts": "1700000500.000000",
+      "thread_ts": "1700000500.000000",
+      "user": "U0ANA",
+      "text": "This is a very long first line that definitely goes well beyond eighty characters in total length for the test case\nSecond line here"
+    },
+    {
+      "type": "message",
+      "ts": "1700000460.000000",
+      "user": "U0ANA",
+      "subtype": "channel_join",
+      "text": "<@U0ANA> has joined the channel"
+    },
+    {
+      "type": "message",
+      "ts": "1700000440.000000",
+      "user": "U0CARL",
+      "text": "not a watched user"
+    },
+    {
+      "type": "message",
+      "ts": "1700000420.000000",
+      "user": "U0BO",
+      "text": "Message from bo"
+    }
+  ],
+  "has_more": true,
+  "response_metadata": {
+    "next_cursor": "page2cursor"
+  }
+}
