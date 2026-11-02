@@ -1,0 +1,24 @@
+# Slack messages as pastor items: one task per top-level message from a
+# listed user in one channel. Talks to Slack through curl on the Web API,
+# with a bot token in the connector's .env as the only credential.
+id = "slack"
+name = "Slack"
+version = "0.1.0"
+min_pastor_version = "0.7.0"
+description = "One item per top-level message from a listed user in one Slack channel"
+
+[connector]
+mode = "poll"
+command = ["sh", "poll.sh"]
+timeout = "60s"
+
+[connector.config.channel]
+required = true
+description = "Channel ID to watch (C..., not the name)"
+
+[connector.config.users]
+required = true
+description = "Slack user IDs whose messages become tasks, comma-separated"
+
+[secrets.SLACK_BOT_TOKEN]
+description = "Bot token with the channels:history scope (groups:history for a private channel)"

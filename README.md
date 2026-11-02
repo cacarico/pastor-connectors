@@ -10,3 +10,5 @@ github-issues needs 0.7.0, which runs its finish command.
 - [github-pr-reviews](github-pr-reviews/): one task per pull request review by a
   matching reviewer (Copilot by default), carrying its unresolved comments,
   and `PR` and `PUSHED` lines for `pastor watch` (pastor 0.7.0 or later).
+- [slack](slack/): one task per top-level Slack message from a listed user in
+  one channel (pastor 0.7.0 or later).

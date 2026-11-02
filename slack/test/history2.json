@@ -1,0 +1,15 @@
+{
+  "ok": true,
+  "messages": [
+    {
+      "type": "message",
+      "ts": "1700000100.000000",
+      "user": "U0ANA",
+      "text": "Oldest message"
+    }
+  ],
+  "has_more": false,
+  "response_metadata": {
+    "next_cursor": ""
+  }
+}

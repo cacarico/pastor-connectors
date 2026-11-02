@@ -1,0 +1,15 @@
+{
+  "ok": true,
+  "messages": [
+    {
+      "type": "message",
+      "ts": "1700000300.000000",
+      "user": "U0ANA",
+      "text": "Older than the pages read before"
+    }
+  ],
+  "has_more": false,
+  "response_metadata": {
+    "next_cursor": ""
+  }
+}
