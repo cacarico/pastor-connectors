@@ -1,0 +1,5 @@
+{"type":"log","level":"info","message":"3 items from C0TEST for U0ANA,U0BO"}
+{"type":"item","key":"C0TEST:1700000100.000000","title":"Oldest message","body":"Oldest message","url":"https://acme-test.slack.com/archives/C0TEST/p1700000100000000","author":"U0ANA","channel":"C0TEST","ts":"1700000100.000000"}
+{"type":"item","key":"C0TEST:1700000420.000000","title":"Message from bo","body":"Message from bo","url":"https://acme-test.slack.com/archives/C0TEST/p1700000420000000","author":"U0BO","channel":"C0TEST","ts":"1700000420.000000"}
+{"type":"item","key":"C0TEST:1700000500.000000","title":"This is a very long first line that definitely goes well beyond eighty character","body":"This is a very long first line that definitely goes well beyond eighty characters in total length for the test case\nSecond line here","url":"https://acme-test.slack.com/archives/C0TEST/p1700000500000000","author":"U0ANA","channel":"C0TEST","ts":"1700000500.000000"}
+{"type":"cursor","value":"1700000520.000000"}

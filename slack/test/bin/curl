@@ -1,0 +1,37 @@
+#!/bin/sh
+# A stand-in for curl: records each call (one line per call) in CURL_LOG and
+# answers Slack Web API calls from fixtures selected by method and, for
+# conversations.history, by whether the request carries a pagination
+# cursor, so poll.sh can be checked without the network or a real Slack
+# workspace. poll.sh calls curl as `curl -sS -H @- url`, with the header on
+# stdin, so the url is the last argument. The arguments go to CURL_LOG and
+# stdin to CURL_STDIN_LOG, one line per call, to check what travels where.
+# Fails a call whose url contains CURL_FAIL.
+for url; do :; done
+printf '%s\n' "$*" >> "$CURL_LOG"
+cat >> "${CURL_STDIN_LOG:-/dev/null}"
+
+if [ -n "${CURL_FAIL:-}" ]; then
+  case "$url" in
+    *"$CURL_FAIL"*)
+      echo "curl: (6) Could not resolve host: slack.com" >&2
+      exit 1
+      ;;
+  esac
+fi
+
+case "$url" in
+  *auth.test*)
+    cat "$CURL_AUTH_FIXTURE"
+    ;;
+  *'cursor='*)
+    cat "$CURL_HISTORY_PAGE2_FIXTURE"
+    ;;
+  *conversations.history*)
+    cat "$CURL_HISTORY_FIXTURE"
+    ;;
+  *)
+    echo "test/bin/curl: unexpected url $url" >&2
+    exit 1
+    ;;
+esac
