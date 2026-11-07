@@ -14,7 +14,7 @@ merge state and branches pushed without a pull request.
 GitHub is reached through the `gh` CLI, so the login `gh` already has is the
 only credential. The connector declares no secrets; `.env` holds only the
 repository the watch command looks at. It needs `gh`, `jq` and a POSIX `sh`,
-and pastor 0.7.0 or later for `[watch]`. It has no hook.
+and pastor 0.7.0 or later. It has no hook.
 
 ## Install
 
@@ -73,7 +73,7 @@ number), `title` (the pull request's title), `branch` (its head branch),
 `head` (the head commit's sha), `review_url` and `body`. The body holds one
 section per unresolved inline comment of that review:
 
-```
+```text
 ## 2934017465
 src/limit.rs:12
 The window is never reset, so a client stays blocked forever.
@@ -96,9 +96,11 @@ Every run reads all open pull requests, then looks only at reviews submitted
 at or after a point in time, and emits a cursor with the newest review's
 `submittedAt`; the next run starts there. Any reviewer's review moves the
 cursor, whether or not it made an item. Before the first cursor exists, the
-bound is pastor's `since`: now minus the job's `backfill`, which defaults to
-zero, so without a `backfill` the first run only sees reviews that arrive
-after the job was enabled.
+bound is pastor's `since`: now minus the job's `backfill` (which defaults to
+zero) until a run queues all its new items, then the start of the last such
+run. So
+without a `backfill` the first run only sees reviews that arrive after the
+job was enabled.
 
 A review makes one task. pastor remembers the keys it has queued, and
 resolving threads later does not change a review's id. A fix pushed to the
@@ -118,11 +120,11 @@ queue a key twice.
 
 ```bash
 pastor connector link ./github-pr-reviews
-pastor connector run github-pr-reviews --job widgets-reviews --since 7d   # prints items, creates nothing
+pastor connector try github-pr-reviews --job widgets-reviews --since 7d   # prints items, creates nothing
 pastor connector unlink github-pr-reviews
 ```
 
-`connector run` reads the job's `[connector]` table from its file, which may
+`connector try` reads the job's `[connector]` table from its file, which may
 have `enabled = false`, so the job above can be tried before it is enabled.
 
 ## Watch
@@ -145,7 +147,7 @@ Each run prints the state as it is now, and the watcher prints a line only
 the first time it sees it, so a line shows up when something about it
 changes:
 
-```
+```text
 PR #41 branch=kanban/0e7d383e head=3f2a9c1 copilot=reviewed threads_open=2 ci=SUCCESS merge=BLOCKED
 PUSHED kanban/0e7d383e sha=3f2a9c1 pr=#41
 PUSHED kanban/8070c85f sha=e1e6411 pr=merged
@@ -164,16 +166,19 @@ PUSHED kanban/fe868ab9 sha=4cba06d pr=none
   (kanban branches are kept after they merge), else `none`: pushed and
   waiting for a pull request.
 
-The shape is the one the `orchestrating-pastor-tiered` skill's `watch.sh`
-printed, so its table matches these lines word for word. A pull request or
+The lines tell whoever watches the fleet which pull requests wait on a
+review, CI or a merge, and which pushed branches still have no pull request.
+A pull request or
 branch whose name breaks the rule for head branches above gets no line, only a note on
 stderr. Asking whether a branch is in the default branch costs one API call
 per branch, so a yes is kept in the connector's state dir and not asked
 again. A no is asked every run, since the branch may merge.
 
 A run that fails (a `gh` call fails, or the repository is missing or not
-`owner/name`) prints no lines and exits non-zero; the watcher shows it as
-`CONNECTOR github-pr-reviews failing`. Stderr goes to the run log.
+`owner/name`) prints no lines and exits non-zero; the watcher shows it once
+as `CONNECTOR github-pr-reviews failing: <why>`, and as
+`CONNECTOR github-pr-reviews ok` when a run works again. Stderr goes to the
+run log.
 
 To see the lines once, without a watcher:
 

@@ -7,9 +7,10 @@ queues a task for each item it has not seen.
 
 Slack is reached through `curl` on the Web API, so the only credential is
 a bot token in the connector's `.env`. It needs pastor 0.7.0 or later, and
-`curl` 7.55 or later, `jq` and a POSIX `sh` on the head. The token goes to
-`curl` on its standard input, not in its arguments, so other users on the head
-cannot read it from the process list.
+`curl` 7.55 or later, `jq` and a POSIX `sh` on the machine whose `jobs/` holds
+the job. The token goes to `curl` on its standard input, not in its
+arguments, so other users on that machine cannot read it from the process
+list.
 
 The connector only reads the channel. It does not post back to Slack when a
 task ends.
@@ -52,9 +53,9 @@ channel = "C0123456789"       # required, the channel ID, not its name
 users = "U0123456789,U0ABCDEF"   # required, comma-separated Slack user IDs
 
 [dispatch]
-repo = "acme/widgets"
+repo = "~/work/widgets"
 worktree = true
-branch = "pastor/slack-{{ item.key }}"
+branch = "pastor/slack-{{ item.ts }}"
 backfill = "1d"
 max_tasks_per_run = 2
 prompt = """
@@ -83,8 +84,9 @@ owner trusts to ask for it.
 The connector asks Slack's `conversations.history` for messages after a
 point in time (`oldest`) and emits a cursor with the newest message `ts` it
 saw, filtered or not; the next run starts there. Before the first cursor
-exists, the bound is pastor's `since`: now minus the job's `backfill`, which
-defaults to zero.
+exists, the bound is pastor's `since`: now minus the job's `backfill` (which
+defaults to zero) until a run queues all its new items, then the start of
+the last such run.
 
 Slack answers newest first, and a run reads at most 5 pages (1,000
 messages). When a channel has more than that waiting, the run has read only
@@ -106,7 +108,7 @@ message does not queue a second task.
 
 ```bash
 pastor connector link ./slack
-pastor connector run slack --job slack-watch --since 1d   # prints items, creates nothing
+pastor connector try slack --job slack-watch --since 1d   # prints items, creates nothing
 pastor connector unlink slack
 ```
 
@@ -123,4 +125,4 @@ at 5 pages, that a cursor wins over `since`, that config is validated
 before any call goes out, that a run capped at 5 pages hands back a window
 which the following runs read down to the old cursor before the newest `ts`
 becomes the cursor, that the token is never in `curl`'s arguments, and that an `ok: false`
-response or a failed `curl` exits non-zero without items. Nothing touches the network.
+response exits non-zero without items. Nothing touches the network.
