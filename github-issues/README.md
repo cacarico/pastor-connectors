@@ -8,9 +8,10 @@ its issue with the task id, the final state, the branch and the branch's pull
 request; merging that pull request closes the issue.
 
 GitHub is reached through the `gh` CLI, so the login `gh` already has on the
-head is the only credential. The connector declares no secrets and needs
-nothing in `.env`. It needs pastor 0.7.0 or later, and `gh`, `jq` and a
-POSIX `sh` on the head.
+machine whose `jobs/` holds the job is the only credential. The connector
+declares no secrets and needs nothing in `.env`. It needs pastor 0.7.0 or
+later, and `gh`, `jq` and a POSIX `sh` on the machine whose `jobs/` holds the
+job.
 
 ## Install
 
@@ -59,7 +60,8 @@ requests are skipped even when they carry the label.
 The connector asks GitHub for issues updated at or after a point in time and
 emits a cursor with the newest `updated_at` it saw; the next run starts
 there. Before the first cursor exists, the bound is pastor's `since`: now
-minus the job's `backfill`, which defaults to zero. Set `backfill` to how far
+minus the job's `backfill` (which defaults to zero) until a run queues all
+its new items, then the start of the last such run. Set `backfill` to how far
 back the first run should look, or the job starts with an empty list and
 only picks up issues touched after it was enabled.
 
@@ -78,7 +80,7 @@ command = ["sh", "finish.sh"]
 ```
 
 `finish.sh` reads the task, its final state and its branch from stdin (see
-"The finish command" in pastor's manual), looks for a pull request from that
+the `[finish]` section of pastor's manual), looks for a pull request from that
 branch with `gh pr list --head <branch>`, and comments on the issue:
 
 > pastor task t-7 ended `done` on branch `pastor/issue-12`.
@@ -113,12 +115,12 @@ without merging leaves the issue open.
 
 ```bash
 pastor connector link ./github-issues
-pastor connector run github-issues --job widgets --since 90d   # prints items, creates nothing
+pastor connector try github-issues --job widgets --since 90d   # prints items, creates nothing
 pastor connector unlink github-issues
 sh github-issues/finish.sh --dry-run < github-issues/test/finish.json   # prints the comment, posts nothing
 ```
 
-`connector run` reads the job's `[connector]` table from its file, which may
+`connector try` reads the job's `[connector]` table from its file, which may
 have `enabled = false`. `finish.sh --dry-run` takes the stdin pastor would
 send, `test/finish.json` being a sample, and prints the comment it would post.
 It still asks GitHub for the pull request, and it writes nothing to the state
