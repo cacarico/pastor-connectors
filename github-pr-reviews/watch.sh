@@ -1,7 +1,7 @@
 #!/bin/sh
 # The [watch] command `pastor watch` runs each interval. Prints the state of
 # one repository as it is now, one line per open pull request and one per
-# kanban/ branch, in the shape the orchestrating-pastor-tiered skill matches:
+# kanban/ branch, for whoever watches the fleet, in this shape:
 #
 #   PR #<n> branch=<b> head=<sha> copilot=<reviewed|none> threads_open=<n> ci=<state> merge=<state>
 #   PUSHED kanban/<key> sha=<sha> pr=<#n|merged|none>
